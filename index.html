@@ -150,6 +150,24 @@ body {
 .btn-add:hover { opacity: .9; transform: translateY(-1px); }
 .btn-add:active { transform: translateY(0); }
 
+.btn-sort {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  background: rgba(255,255,255,.1);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.btn-sort:hover { background: rgba(255,255,255,.18); }
+
 /* ── Main ── */
 .container {
   max-width: 1200px;
@@ -611,6 +629,12 @@ body {
         <option value="Slight delay">Slight delay</option>
         <option value="Delayed">Delayed</option>
       </select>
+      <button class="btn-sort" id="sortBtn" onclick="toggleSort()" title="Toggle sort order">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M3 16l4 4 4-4M7 20V4M21 8l-4-4-4 4M17 4v16"/>
+        </svg>
+        <span id="sortLabel">Newest</span>
+      </button>
       <button class="btn-add" onclick="openAddModal()">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <path d="M12 5v14M5 12h14"/>
@@ -787,6 +811,7 @@ async function deleteStoragePhoto(url) {
 let entries = [];
 let lightboxPhotos = [], lightboxIdx = 0;
 let editingId = null, newFiles = [], existingPhotos = [], toDelete = [];
+let sortOrder = 'desc'; // default: newest first
 
 // ── Boot ─────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
@@ -803,12 +828,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   } finally { hideLoading(); }
 });
 
+// ── Sort toggle ──────────────────────────────────────────────────
+function toggleSort() {
+  sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+  document.getElementById('sortLabel').textContent = sortOrder === 'desc' ? 'Newest' : 'Oldest';
+  renderTimeline();
+}
+
 // ── Render ───────────────────────────────────────────────────────
 function renderTimeline() {
   const q  = document.getElementById('searchInput').value.toLowerCase();
   const yr = document.getElementById('yearFilter').value;
   const mo = document.getElementById('monthFilter').value;
   const st = document.getElementById('statusFilter').value;
+  const dir = sortOrder === 'desc' ? -1 : 1;
 
   let filtered = entries.filter(e => {
     const ms = !q || e.phase.toLowerCase().includes(q)
@@ -816,7 +849,11 @@ function renderTimeline() {
       || (e.next_steps||[]).some(n => n.toLowerCase().includes(q));
     const matchMonth = !mo || (e.start_date && (new Date(e.start_date+'T00:00:00').getMonth()+1).toString() === mo);
     return ms && (!yr || e.year.toString()===yr) && matchMonth && (!st || e.status===st);
-  }).sort((a,b) => a.year!==b.year ? a.year-b.year : a.week!==b.week ? a.week-b.week : a.id.localeCompare(b.id));
+  }).sort((a,b) => {
+    if (a.year !== b.year) return dir * (a.year - b.year);
+    if (a.week !== b.week) return dir * (a.week - b.week);
+    return dir * a.id.localeCompare(b.id);
+  });
 
   const grouped = {};
   filtered.forEach(e => { (grouped[e.year]=grouped[e.year]||[]).push(e); });
@@ -825,7 +862,7 @@ function renderTimeline() {
   document.getElementById('noResults').style.display = filtered.length ? 'none' : 'block';
   tl.innerHTML = '';
 
-  Object.keys(grouped).sort((a,b)=>a-b).forEach(yr => {
+  Object.keys(grouped).sort((a,b) => dir * (a - b)).forEach(yr => {
     const sec = document.createElement('div');
     sec.className = 'year-section';
     const cnt = grouped[yr].length;
