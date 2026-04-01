@@ -590,6 +590,21 @@ body {
       <select id="yearFilter" class="hdr-select">
         <option value="">All Years</option>
       </select>
+      <select id="monthFilter" class="hdr-select">
+        <option value="">All Months</option>
+        <option value="1">January</option>
+        <option value="2">February</option>
+        <option value="3">March</option>
+        <option value="4">April</option>
+        <option value="5">May</option>
+        <option value="6">June</option>
+        <option value="7">July</option>
+        <option value="8">August</option>
+        <option value="9">September</option>
+        <option value="10">October</option>
+        <option value="11">November</option>
+        <option value="12">December</option>
+      </select>
       <select id="statusFilter" class="hdr-select">
         <option value="">All Status</option>
         <option value="On time">On time</option>
@@ -781,6 +796,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderTimeline(); populateYearFilter();
     document.getElementById('searchInput').addEventListener('input', renderTimeline);
     document.getElementById('yearFilter').addEventListener('change', renderTimeline);
+    document.getElementById('monthFilter').addEventListener('change', renderTimeline);
     document.getElementById('statusFilter').addEventListener('change', renderTimeline);
   } catch(e) {
     showToast('Failed to load: ' + e.message, 'error');
@@ -791,13 +807,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 function renderTimeline() {
   const q  = document.getElementById('searchInput').value.toLowerCase();
   const yr = document.getElementById('yearFilter').value;
+  const mo = document.getElementById('monthFilter').value;
   const st = document.getElementById('statusFilter').value;
 
   let filtered = entries.filter(e => {
     const ms = !q || e.phase.toLowerCase().includes(q)
       || (e.summary_bullets||[]).some(b => b.toLowerCase().includes(q))
       || (e.next_steps||[]).some(n => n.toLowerCase().includes(q));
-    return ms && (!yr || e.year.toString()===yr) && (!st || e.status===st);
+    const matchMonth = !mo || (e.start_date && (new Date(e.start_date+'T00:00:00').getMonth()+1).toString() === mo);
+    return ms && (!yr || e.year.toString()===yr) && matchMonth && (!st || e.status===st);
   }).sort((a,b) => a.year!==b.year ? a.year-b.year : a.week!==b.week ? a.week-b.week : a.id.localeCompare(b.id));
 
   const grouped = {};
